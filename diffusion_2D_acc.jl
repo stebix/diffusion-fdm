@@ -7,8 +7,31 @@ using InteractiveUtils
 # ╔═╡ 04c6d650-42ad-11ef-31cd-af91877dd8e1
 begin
 	using ParallelStencil
+	using ParallelStencil.FiniteDifferences2D
 	using Plots
+	using ImplicitGlobalGrid
 end
+
+# ╔═╡ ebea5501-77db-4887-aa38-6b88d2fe3d41
+@init_parallel_stencil(Threads, Float64, 2)
+
+# ╔═╡ 27b25869-f82f-48c7-a9b3-707916300f20
+
+
+# ╔═╡ d57b2927-75c4-415a-8120-5715b229956b
+
+
+# ╔═╡ d39d02bb-92db-497d-a9de-cde2edec3175
+
+
+# ╔═╡ 0cd0136c-612d-4389-8aa2-5acc05c65424
+σ = 10
+
+# ╔═╡ d20118bc-bcd6-4a96-bd95-8a548cfb53a6
+
+
+# ╔═╡ 98a1968d-d3cf-44a2-8d83-5db9627203c5
+
 
 # ╔═╡ 8be381e8-b914-43ce-b98c-7cb567e665d5
 begin
@@ -25,7 +48,7 @@ begin
 	dy = ly / ny
 	xcoords = LinRange(dx/2, lx-dx/2, nx)
 	ycoords = LinRange(dy/2, ly-dy/2, ny)
-	total_timesteps = 2000
+	total_timesteps = 1000
 end
 
 # ╔═╡ f81a48ff-a45a-4a5a-a509-92aa2ec72265
@@ -60,12 +83,6 @@ ycoords
 # ╔═╡ 3f67ef09-7168-4c57-8de6-7b7121793f65
 fvals = f.(xcoords, ycoords')
 
-# ╔═╡ c7e5e081-9bc1-415b-a76c-b86912436396
-begin
-	plt = plot()
-	surface!(fvals, camera=(60, 60))
-end
-
 # ╔═╡ c716b4b1-b538-437f-8ed3-35b5a85973f7
 begin
 	init = copy(fvals)
@@ -73,22 +90,98 @@ begin
 	qy = zeros(Float64, ny-1)
 end
 
-# ╔═╡ 9fcf4724-d783-45fb-87cc-14e626019978
-# derive timestep die to the Courant-Friedrichs-Lewy condition
-dt = 1 / (2 * D * (1/dx^2 + 1/dy^2))
+# ╔═╡ 4006e2fa-20a4-4848-a761-16eb4b12727f
+function diffusion_3D()
+	pass
+end
+
+# ╔═╡ 3d533d6e-f2ba-47ee-82bb-ca64036f33d3
+begin
+	C = copy(fvals)
+	C_next = copy(C)
+	size(C)
+end
+
+# ╔═╡ 6ea1e5b6-fbf8-4dd3-a415-a06e0f3b57c9
+dt = min(dx^2, dy^2)/D/8.1
+
+# ╔═╡ 6a1a57fc-1de4-4261-9ac4-d2383319cb83
+typeof(dx)
+
+# ╔═╡ e3139f4c-932c-46c4-8611-5fe00d5335d7
+@parallel function diffusion_step_2D!(C_next, C, D, dt, dx, dy)
+	@inn(C_next) = @inn(C) + dt * (D * (@d2_xi(C)/dx^2 + @d2_yi(C)/dy^2))
+	return
+end
+
+# ╔═╡ b2e1ad0a-9995-494a-8311-3e03392264dc
+for ti in 1:total_timesteps
+	@parallel diffusion_step_2D!(C_next, C, D, dt, dx, dy)
+	C = C_next
+	C_next = C
+end
+
+# ╔═╡ 56c53fc7-4161-4bcf-8119-b6eeb62a13ed
+
 
 # ╔═╡ 33800aed-6115-44b7-9e98-1eb2b0ad6e67
-for ti in 1:total_timesteps
-	println(ti)
+function twoargs(a, b)
+	println(a, b)
+	return nothing
 end
+
+# ╔═╡ e8468c6e-bf04-4fd1-9d0b-e591ca908360
+na, nb = size(a)
+
+# ╔═╡ 0886f1a0-8355-4378-a534-4852bde4ad34
+superpos = zeros(Float32, size(a));
+
+# ╔═╡ ed0f8ce5-22f0-402f-b14a-1fc339fb8a24
+for i in 1:na
+	for j in 1:nb
+		superpos[i, j] = exp(-(((i-na/2)/σ)^2+((j-nb/2)/σ)^2))
+	end
+end
+
+# ╔═╡ ded8eac4-ebea-4222-a5d4-b02827880f91
+minimum(superpos)
+
+# ╔═╡ 48c6375a-d207-434c-9198-ef66a9552b52
+typeof((size(a[1, :, :])..., 1))
+
+# ╔═╡ b6d4b002-1a14-4f2a-888c-b83fe69f3650
+begin
+	plt = plot()
+	heatmap!(superpos)
+end
+
+# ╔═╡ f9517dc6-4096-4ecb-9910-cfda7a6611ee
+a = Array{Float32}(undef, 4, 7, 5)
+
+# ╔═╡ c7e5e081-9bc1-415b-a76c-b86912436396
+# ╠═╡ disabled = true
+#=╠═╡
+begin
+	plt = plot()
+	surface!(C, camera=(60, 60))
+end
+  ╠═╡ =#
+
+# ╔═╡ 91d01194-10ab-42e8-90ef-48425e036238
+# ╠═╡ disabled = true
+#=╠═╡
+a = Array{Float32}(undef, 100, 150)
+  ╠═╡ =#
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
+ImplicitGlobalGrid = "4d7a3746-15be-11ea-1130-334b0c4f5fa0"
 ParallelStencil = "94395366-693c-11ea-3b26-d9b7aac5d958"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 
 [compat]
+ImplicitGlobalGrid = "~0.15.0"
 ParallelStencil = "~0.13.1"
 Plots = "~1.40.5"
 """
@@ -99,7 +192,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.10.4"
 manifest_format = "2.0"
-project_hash = "80c13de8d0716782bf82f78d5bdc3f07a970b6d3"
+project_hash = "fa57bd5d31233b71d5709a44233a75fd075444b7"
 
 [[deps.Adapt]]
 deps = ["LinearAlgebra", "Requires"]
@@ -231,6 +324,10 @@ git-tree-sha1 = "9e2f36d3c96a820c678f2f1f1782582fcf685bae"
 uuid = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 version = "1.9.1"
 
+[[deps.Distributed]]
+deps = ["Random", "Serialization", "Sockets"]
+uuid = "8ba89e20-285c-5b6f-9357-94700520ee1b"
+
 [[deps.DocStringExtensions]]
 deps = ["LibGit2"]
 git-tree-sha1 = "2fb1e02f2b635d0845df5d7c167fec4dd739b00d"
@@ -357,6 +454,28 @@ git-tree-sha1 = "129acf094d168394e80ee1dc4bc06ec835e510a3"
 uuid = "2e76f6c2-a576-52d4-95c1-20adfe4de566"
 version = "2.8.1+1"
 
+[[deps.Hwloc_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl"]
+git-tree-sha1 = "1d334207121865ac8c1c97eb7f42d0339e4635bf"
+uuid = "e33a78d0-f292-5ffc-b300-72abe9b543c8"
+version = "2.11.0+0"
+
+[[deps.ImplicitGlobalGrid]]
+deps = ["MPI"]
+git-tree-sha1 = "e41b1a170559786834741efe5450352cb3fcc74b"
+uuid = "4d7a3746-15be-11ea-1130-334b0c4f5fa0"
+version = "0.15.0"
+
+    [deps.ImplicitGlobalGrid.extensions]
+    ImplicitGlobalGrid_AMDGPUExt = "AMDGPU"
+    ImplicitGlobalGrid_CUDAExt = "CUDA"
+    ImplicitGlobalGrid_LoopVectorizationExt = "LoopVectorization"
+
+    [deps.ImplicitGlobalGrid.weakdeps]
+    AMDGPU = "21141c5a-9bdb-4563-92ae-f87d6854732e"
+    CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+    LoopVectorization = "bdcacae8-1622-11e9-2a5c-532679323890"
+
 [[deps.InteractiveUtils]]
 deps = ["Markdown"]
 uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
@@ -432,6 +551,10 @@ version = "0.16.4"
     [deps.Latexify.weakdeps]
     DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
     SymEngine = "123dc426-2d89-5057-bbad-38513e3affd8"
+
+[[deps.LazyArtifacts]]
+deps = ["Artifacts", "Pkg"]
+uuid = "4af54fe1-eca0-43a8-85a7-787d91b784e3"
 
 [[deps.LibCURL]]
 deps = ["LibCURL_jll", "MozillaCACerts_jll"]
@@ -537,6 +660,38 @@ git-tree-sha1 = "c1dd6d7978c12545b4179fb6153b9250c96b0075"
 uuid = "e6f89c97-d47a-5376-807f-9c37f3926c36"
 version = "1.0.3"
 
+[[deps.MPI]]
+deps = ["Distributed", "DocStringExtensions", "Libdl", "MPICH_jll", "MPIPreferences", "MPItrampoline_jll", "MicrosoftMPI_jll", "OpenMPI_jll", "PkgVersion", "PrecompileTools", "Requires", "Serialization", "Sockets"]
+git-tree-sha1 = "b4d8707e42b693720b54f0b3434abee6dd4d947a"
+uuid = "da04e1cc-30fd-572f-bb4f-1f8673147195"
+version = "0.20.16"
+
+    [deps.MPI.extensions]
+    AMDGPUExt = "AMDGPU"
+    CUDAExt = "CUDA"
+
+    [deps.MPI.weakdeps]
+    AMDGPU = "21141c5a-9bdb-4563-92ae-f87d6854732e"
+    CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+
+[[deps.MPICH_jll]]
+deps = ["Artifacts", "CompilerSupportLibraries_jll", "Hwloc_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "MPIPreferences", "TOML"]
+git-tree-sha1 = "4099bb6809ac109bfc17d521dad33763bcf026b7"
+uuid = "7cb0a576-ebde-5e09-9194-50597f1243b4"
+version = "4.2.1+1"
+
+[[deps.MPIPreferences]]
+deps = ["Libdl", "Preferences"]
+git-tree-sha1 = "c105fe467859e7f6e9a852cb15cb4301126fac07"
+uuid = "3da0fdf6-3ccc-4f1b-acd9-58baa6c99267"
+version = "0.1.11"
+
+[[deps.MPItrampoline_jll]]
+deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "MPIPreferences", "TOML"]
+git-tree-sha1 = "8c35d5420193841b2f367e658540e8d9e0601ed0"
+uuid = "f1f71cc9-e9ae-5b93-9b94-4fe0e1ad3748"
+version = "5.4.0+0"
+
 [[deps.MacroTools]]
 deps = ["Markdown", "Random"]
 git-tree-sha1 = "2fa9ee3e63fd3a4f7a9a4f4744a52f4856de82df"
@@ -562,6 +717,12 @@ version = "2.28.2+1"
 git-tree-sha1 = "c13304c81eec1ed3af7fc20e75fb6b26092a1102"
 uuid = "442fdcdd-2543-5da2-b0f3-8c86c306513e"
 version = "0.3.2"
+
+[[deps.MicrosoftMPI_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
+git-tree-sha1 = "f12a29c4400ba812841c6ace3f4efbb6dbb3ba01"
+uuid = "9237b28f-5490-5468-be7b-bb81f5f5e6cf"
+version = "10.1.4+2"
 
 [[deps.Missings]]
 deps = ["DataAPI"]
@@ -601,6 +762,12 @@ version = "0.3.23+4"
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
 version = "0.8.1+2"
+
+[[deps.OpenMPI_jll]]
+deps = ["Artifacts", "CompilerSupportLibraries_jll", "Hwloc_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "MPIPreferences", "TOML", "Zlib_jll"]
+git-tree-sha1 = "a9de2f1fc98b92f8856c640bf4aec1ac9b2a0d86"
+uuid = "fe0851c0-eecd-5654-98d4-656369965a5c"
+version = "5.0.3+0"
 
 [[deps.OpenSSL]]
 deps = ["BitFlags", "Dates", "MozillaCACerts_jll", "OpenSSL_jll", "Sockets"]
@@ -668,6 +835,12 @@ version = "0.43.4+0"
 deps = ["Artifacts", "Dates", "Downloads", "FileWatching", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "REPL", "Random", "SHA", "Serialization", "TOML", "Tar", "UUIDs", "p7zip_jll"]
 uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 version = "1.10.0"
+
+[[deps.PkgVersion]]
+deps = ["Pkg"]
+git-tree-sha1 = "f9501cc0430a26bc3d156ae1b5b0c1b47af4d6da"
+uuid = "eebad327-c553-4316-9ea0-9fa01ccd7688"
+version = "0.3.3"
 
 [[deps.PlotThemes]]
 deps = ["PlotUtils", "Statistics"]
@@ -1204,6 +1377,19 @@ version = "1.4.1+1"
 
 # ╔═╡ Cell order:
 # ╠═04c6d650-42ad-11ef-31cd-af91877dd8e1
+# ╠═ebea5501-77db-4887-aa38-6b88d2fe3d41
+# ╠═27b25869-f82f-48c7-a9b3-707916300f20
+# ╠═91d01194-10ab-42e8-90ef-48425e036238
+# ╠═d57b2927-75c4-415a-8120-5715b229956b
+# ╠═e8468c6e-bf04-4fd1-9d0b-e591ca908360
+# ╠═0886f1a0-8355-4378-a534-4852bde4ad34
+# ╠═d39d02bb-92db-497d-a9de-cde2edec3175
+# ╠═0cd0136c-612d-4389-8aa2-5acc05c65424
+# ╠═ed0f8ce5-22f0-402f-b14a-1fc339fb8a24
+# ╠═d20118bc-bcd6-4a96-bd95-8a548cfb53a6
+# ╠═b6d4b002-1a14-4f2a-888c-b83fe69f3650
+# ╠═ded8eac4-ebea-4222-a5d4-b02827880f91
+# ╠═98a1968d-d3cf-44a2-8d83-5db9627203c5
 # ╠═8be381e8-b914-43ce-b98c-7cb567e665d5
 # ╠═18077029-8051-4623-9b66-e3d166e05481
 # ╠═f81a48ff-a45a-4a5a-a509-92aa2ec72265
@@ -1214,7 +1400,15 @@ version = "1.4.1+1"
 # ╠═3f67ef09-7168-4c57-8de6-7b7121793f65
 # ╠═c7e5e081-9bc1-415b-a76c-b86912436396
 # ╠═c716b4b1-b538-437f-8ed3-35b5a85973f7
-# ╠═9fcf4724-d783-45fb-87cc-14e626019978
+# ╠═4006e2fa-20a4-4848-a761-16eb4b12727f
+# ╠═3d533d6e-f2ba-47ee-82bb-ca64036f33d3
+# ╠═6ea1e5b6-fbf8-4dd3-a415-a06e0f3b57c9
+# ╠═6a1a57fc-1de4-4261-9ac4-d2383319cb83
+# ╠═e3139f4c-932c-46c4-8611-5fe00d5335d7
+# ╠═b2e1ad0a-9995-494a-8311-3e03392264dc
+# ╠═56c53fc7-4161-4bcf-8119-b6eeb62a13ed
 # ╠═33800aed-6115-44b7-9e98-1eb2b0ad6e67
+# ╠═f9517dc6-4096-4ecb-9910-cfda7a6611ee
+# ╠═48c6375a-d207-434c-9198-ef66a9552b52
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
